@@ -1,26 +1,26 @@
-/* A program to play tic-tac-toe with the computer. */
 #include <stdio.h>
 #include <stdint.h>
 #include <assert.h>
+#include <stdlib.h>
 
-#define BOARD_SIZE (3)
+#define MAX_SIZE 10
 
 typedef char player_t; // 'X' or 'O'
-typedef char board_t[BOARD_SIZE][BOARD_SIZE]; // 'X' or 'O' or '.'
+typedef char **board_t; // 'X' or 'O' or '.'
 
-void init_board(board_t board)
+void init_board(board_t board, int size)
 {
-    for (int row = 0; row < BOARD_SIZE; ++row) {
-        for (int col = 0; col < BOARD_SIZE; ++col) {
+    for (int row = 0; row < size; ++row) {
+        for (int col = 0; col < size; ++col) {
             board[row][col] = '.';
         }
     }
 }
 
-void print_board(board_t board)
+void print_board(board_t board, int size)
 {
-    for (int row = 0; row < BOARD_SIZE; ++row) {
-        for (int col = 0; col < BOARD_SIZE; ++col) {
+    for (int row = 0; row < size; ++row) {
+        for (int col = 0; col < size; ++col) {
             printf("%3c ", board[row][col]);
         }
         printf("\n");
@@ -28,46 +28,48 @@ void print_board(board_t board)
     printf("\n");
 }
 
-int is_full(board_t board)
+int is_full(board_t board, int size)
 {
-    for (int row = 0; row < BOARD_SIZE; ++row) {
-        for (int col = 0; col < BOARD_SIZE; ++col) {
-            if (board[row][col] == '.') { return 0; }
+    for (int row = 0; row < size; ++row) {
+        for (int col = 0; col < size; ++col) {
+            if (board[row][col] == '.') {
+                return 0;
+            }
         }
     }
     return 1;
 }
 
-int has_won(board_t board, player_t player)
+int has_won(board_t board, player_t player, int size)
 {
-    for (int row = 0; row < BOARD_SIZE; ++row) {
-        for (int col = 0; col < BOARD_SIZE; ++col) {
+    for (int row = 0; row < size; ++row) {
+        for (int col = 0; col < size; ++col) {
             if (board[row][col] != player) {
                 goto next_row;
             }
         }
         return 1;
-    next_row:
+    next_row:;
     }
 
-    for (int col = 0; col < BOARD_SIZE; ++col) {
-        for (int row = 0; row < BOARD_SIZE; ++row) {
+    for (int col = 0; col < size; ++col) {
+        for (int row = 0; row < size; ++row) {
             if (board[row][col] != player) {
                 goto next_col;
             }
         }
         return 1;
-    next_col:
+    next_col:;
     }
 
-    for (int i = 0; i < BOARD_SIZE; ++i) {
+    for (int i = 0; i < size; ++i) {
         if (board[i][i] != player) goto next_diagonal;
     }
     return 1;
 
-next_diagonal:
-    for (int i = 0; i < BOARD_SIZE; ++i) {
-        if (board[i][BOARD_SIZE-1-i] != player) return 0;
+next_diagonal:;
+    for (int i = 0; i < size; ++i) {
+        if (board[i][size - 1 - i] != player) return 0;
     }
     return 1;
 }
@@ -75,9 +77,12 @@ next_diagonal:
 player_t other_player(player_t player)
 {
     switch (player) {
-    case 'X': return 'O';
-    case 'O': return 'X';
-    default: assert(0);
+    case 'X':
+        return 'O';
+    case 'O':
+        return 'X';
+    default:
+        assert(0);
     }
 }
 
@@ -90,22 +95,28 @@ typedef struct {
 
 #define MAX_ORD (43046720)
 
-uint8_t computed_moves[MAX_ORD+1];
+uint8_t computed_moves[MAX_ORD + 1];
 
 uint8_t encode_move(move_t m)
 {
     uint8_t b = 0;
 
-    assert(0 <= m.row && m.row <= 3);
+    assert(0 <= m.row && m.row <= 9); // Assuming maximum board size of 10
     b |= m.row;
 
-    assert(0 <= m.col && m.col <= 3);
-    b |= m.col << 2;
+    assert(0 <= m.col && m.col <= 9);
+    b |= m.col << 4;
 
     switch (m.score) {
-    case -1: b |= 1 << 6; break;
-    case 0: b |= 1 << 5; break;
-    case 1: b |= 1 << 4; break;
+    case -1:
+        b |= 1 << 6;
+        break;
+    case 0:
+        b |= 1 << 5;
+        break;
+    case 1:
+        b |= 1 << 4;
+        break;
     }
 
     return b;
@@ -115,26 +126,35 @@ move_t decode_move(uint8_t b)
 {
     move_t m;
 
-    m.row = b & 0x3;
-    m.col = (b & 0xC) >> 2;
-    if (b & 0x10) m.score = 1;
-    if (b & 0x20) m.score = 0;
-    if (b & 0x40) m.score = -1;
+    m.row = b & 0xF;
+    m.col = (b & 0xF0) >> 4;
+    if (b & 0x10)
+        m.score = 1;
+    if (b & 0x20)
+        m.score = 0;
+    if (b & 0x40)
+        m.score = -1;
     return m;
 }
 
-int ord(board_t board)
+int ord(board_t board, int size)
 {
     int p = 1;
     int i = 0;
     int d;
 
-    for (int row = 0; row < BOARD_SIZE; ++row) {
-        for (int col = 0; col < BOARD_SIZE; ++col) {
+    for (int row = 0; row < size; ++row) {
+        for (int col = 0; col < size; ++col) {
             switch (board[row][col]) {
-            case 'X': d = 1; break;
-            case 'O': d = 2; break;
-            case '.': d = 0; break;
+            case 'X':
+                d = 1;
+                break;
+            case 'O':
+                d = 2;
+                break;
+            case '.':
+                d = 0;
+                break;
             }
             i += d * p;
             p *= 3;
@@ -144,36 +164,33 @@ int ord(board_t board)
     return i;
 }
 
-/*
- * board should be an unfinished game.
- */
-move_t best_move(board_t board, player_t player)
+move_t best_move(board_t board, player_t player, int size)
 {
     move_t response;
     move_t candidate;
     int no_candidate = 1;
 
-    assert(!is_full(board));
-    assert(!has_won(board, player));
-    assert(!has_won(board, other_player(player)));
+    assert(!is_full(board, size));
+    assert(!has_won(board, player, size));
+    assert(!has_won(board, other_player(player), size));
 
-    int o = ord(board);
+    int o = ord(board, size);
 
     if (computed_moves[o]) {
         return decode_move(computed_moves[o]);
     }
 
-    for (int row = 0; row < BOARD_SIZE; ++row) {
-        for (int col = 0; col < BOARD_SIZE; ++col) {
+    for (int row = 0; row < size; ++row) {
+        for (int col = 0; col < size; ++col) {
             if (board[row][col] == '.') {
                 board[row][col] = player;
-                if (has_won(board, player)) {
+                if (has_won(board, player, size)) {
                     board[row][col] = '.';
-                    computed_moves[o] = encode_move(candidate = (move_t) {
+                    computed_moves[o] = encode_move(candidate = (move_t){
                         .row = row,
                         .col = col,
-                        .score = 1
-                        });
+                        .score = 1,
+                    });
                     return candidate;
                 }
                 board[row][col] = '.';
@@ -181,41 +198,41 @@ move_t best_move(board_t board, player_t player)
         }
     }
 
-    for (int row = 0; row < BOARD_SIZE; ++row) {
-        for (int col = 0; col < BOARD_SIZE; ++col) {
+    for (int row = 0; row < size; ++row) {
+        for (int col = 0; col < size; ++col) {
             if (board[row][col] == '.') {
                 board[row][col] = player;
-                if (is_full(board)) {
+                if (is_full(board, size)) {
                     board[row][col] = '.';
-                    computed_moves[o] = encode_move(candidate = (move_t) {
+                    computed_moves[o] = encode_move(candidate = (move_t){
                         .row = row,
                         .col = col,
-                        .score = 0
-                        });
+                        .score = 0,
+                    });
                     return candidate;
                 }
-                response = best_move(board, other_player(player));
+                response = best_move(board, other_player(player), size);
                 board[row][col] = '.';
                 if (response.score == -1) {
-                    computed_moves[o] = encode_move(candidate = (move_t) {
+                    computed_moves[o] = encode_move(candidate = (move_t){
                         .row = row,
                         .col = col,
-                        .score = 1
-                        });
+                        .score = 1,
+                    });
                     return candidate;
                 } else if (response.score == 0) {
-                    candidate = (move_t) {
+                    candidate = (move_t){
                         .row = row,
                         .col = col,
-                        .score = 0
+                        .score = 0,
                     };
                     no_candidate = 0;
                 } else { /* response.score == +1 */
                     if (no_candidate) {
-                        candidate = (move_t) {
+                        candidate = (move_t){
                             .row = row,
                             .col = col,
-                            .score = -1
+                            .score = -1,
                         };
                         no_candidate = 0;
                     }
@@ -227,11 +244,11 @@ move_t best_move(board_t board, player_t player)
     return candidate;
 }
 
-void print_key()
+void print_key(int size)
 {
     int i = 0;
-    for (int row = 0; row < BOARD_SIZE; ++row) {
-        for (int col = 0; col < BOARD_SIZE; ++col) {
+    for (int row = 0; row < size; ++row) {
+        for (int col = 0; col < size; ++col) {
             printf("%3d ", i++);
         }
         printf("\n");
@@ -239,75 +256,76 @@ void print_key()
     printf("\n");
 }
 
-#if TEST
 int main()
 {
-#if 0
-    uint8_t b = encode_move((move_t){ .row = 2, .col = 1, .score = 0 });
-    printf("%X %d\n", b, b);
-    printf("%X\n", encode_move((move_t){ .row = 3, .col = 3, .score = -1 }));
+    int size, goFirst;
+    printf("Enter the size of the Tic Tac Toe board (max %d): ", MAX_SIZE);
+    scanf("%d", &size);
 
-    move_t m = decode_move(b);
-    printf("row = %d, col = %d, score = %d\n", m.row, m.col, m.score);
-
-    board_t board = {
-        { 'X', 'O', '.', '.' },
-        { 'X', 'O', '.', '.' },
-        { 'X', 'O', '.', '.' },
-        { 'O', 'X', '.', '.' }
-    };
-
-    printf("%d\n", ord(board));
-#endif
-    board_t board;
-    init_board(board);
-    best_move(board, 'X');
-
-    int count = 0;
-    for (int o = 0; o <= 66; ++o) {
-        if (computed_moves[o]) {
-            ++count;
-        }
+    if (size > MAX_SIZE || size < 3) {
+        printf("Invalid board size. Exiting...\n");
+        return 1;
     }
-    printf("%d positions analyzed.\n", count);
 
-    return 0;
-}
-#else
-int main()
-{
+    printf("Choose who goes first (1 for user, 2 for computer): ");
+    scanf("%d", &goFirst);
+
+    // Allocate memory for the board dynamically
+    board_t board = (char **)malloc(size * sizeof(char *));
+    for (int i = 0; i < size; ++i) {
+        board[i] = (char *)malloc(size * sizeof(char));
+    }
+
+    init_board(board, size);
+
     int move, row, col;
-    board_t board;
     move_t response;
-    player_t current = 'X';
+    player_t userPlayer, computerPlayer, currentPlayer;
 
-    init_board(board);
+    if (goFirst == 1) {
+        userPlayer = 'X';
+        computerPlayer = 'O';
+        currentPlayer = userPlayer;
+    } else {
+        userPlayer = 'O';
+        computerPlayer = 'X';
+        currentPlayer = computerPlayer;
+    }
+
     while (1) {
-        print_board(board);
-        if (current == 'X') {
-            print_key();
+        print_board(board, size);
+
+        if (currentPlayer == userPlayer) {
+            print_key(size);
             printf("Enter your move: ");
             scanf("%d", &move);
-            row = move / BOARD_SIZE;
-            col = move % BOARD_SIZE;
+            row = move / size;
+            col = move % size;
             assert(board[row][col] == '.');
-            board[row][col] = current;
+            board[row][col] = currentPlayer;
         } else {
-            response = best_move(board, current);
-            board[response.row][response.col] = current;
+            response = best_move(board, currentPlayer, size);
+            board[response.row][response.col] = currentPlayer;
         }
-        if (has_won(board, current)) {
-            print_board(board);
-            printf("Player %c has won!\n", current);
+
+        if (has_won(board, currentPlayer, size)) {
+            print_board(board, size);
+            printf("Player %c has won!\n", currentPlayer);
             break;
-        } else if (is_full(board)) {
-            print_board(board);
+        } else if (is_full(board, size)) {
+            print_board(board, size);
             printf("Draw.\n");
             break;
         }
-        current = other_player(current);
+
+        currentPlayer = other_player(currentPlayer);
     }
+
+    // Free dynamically allocated memory
+    for (int i = 0; i < size; ++i) {
+        free(board[i]);
+    }
+    free(board);
 
     return 0;
 }
-#endif

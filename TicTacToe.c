@@ -1,12 +1,11 @@
 #include <stdio.h>
 #include <stdint.h>
 #include <assert.h>
-#include <stdlib.h>
 
-#define MAX_SIZE 10
+#define MAX_BOARD_SIZE (4)
 
 typedef char player_t; // 'X' or 'O'
-typedef char **board_t; // 'X' or 'O' or '.'
+typedef char board_t[MAX_BOARD_SIZE][MAX_BOARD_SIZE]; // 'X' or 'O' or '.'
 
 void init_board(board_t board, int size)
 {
@@ -32,68 +31,59 @@ int is_full(board_t board, int size)
 {
     for (int row = 0; row < size; ++row) {
         for (int col = 0; col < size; ++col) {
-            if (board[row][col] == '.') {
-                return 0;
-            }
+            if (board[row][col] == '.') { return 0; }
         }
     }
     return 1;
 }
 
-int has_won(board_t board, player_t player, int size, int win_condition)
+int has_won(board_t board, player_t player, int size, int consecutive)
 {
+    // Check rows
     for (int row = 0; row < size; ++row) {
+        int count = 0;
         for (int col = 0; col < size; ++col) {
-            // Check horizontal
-            if (col + win_condition <= size) {
-                int count = 0;
-                for (int i = 0; i < win_condition; ++i) {
-                    if (board[row][col + i] == player) {
-                        count++;
-                    }
-                }
-                if (count == win_condition) {
+            if (board[row][col] == player) {
+                count++;
+                if (count == consecutive) {
                     return 1;
+                }
+            } else {
+                count = 0;
+            }
+        }
+    }
+
+    // Check columns
+    for (int col = 0; col < size; ++col) {
+        int count = 0;
+        for (int row = 0; row < size; ++row) {
+            if (board[row][col] == player) {
+                count++;
+                if (count == consecutive) {
+                    return 1;
+                }
+            } else {
+                count = 0;
+            }
+        }
+    }
+
+    // Check diagonals
+    for (int i = 0; i <= size - consecutive; ++i) {
+        for (int j = 0; j <= size - consecutive; ++j) {
+            int count_diag1 = 0;
+            int count_diag2 = 0;
+            for (int k = 0; k < consecutive; ++k) {
+                if (board[i + k][j + k] == player) {
+                    count_diag1++;
+                }
+                if (board[i + k][j + consecutive - 1 - k] == player) {
+                    count_diag2++;
                 }
             }
-
-            // Check vertical
-            if (row + win_condition <= size) {
-                int count = 0;
-                for (int i = 0; i < win_condition; ++i) {
-                    if (board[row + i][col] == player) {
-                        count++;
-                    }
-                }
-                if (count == win_condition) {
-                    return 1;
-                }
-            }
-
-            // Check diagonal (top-left to bottom-right)
-            if (row + win_condition <= size && col + win_condition <= size) {
-                int count = 0;
-                for (int i = 0; i < win_condition; ++i) {
-                    if (board[row + i][col + i] == player) {
-                        count++;
-                    }
-                }
-                if (count == win_condition) {
-                    return 1;
-                }
-            }
-
-            // Check diagonal (top-right to bottom-left)
-            if (row + win_condition <= size && col - win_condition >= -1) {
-                int count = 0;
-                for (int i = 0; i < win_condition; ++i) {
-                    if (board[row + i][col - i] == player) {
-                        count++;
-                    }
-                }
-                if (count == win_condition) {
-                    return 1;
-                }
+            if (count_diag1 == consecutive || count_diag2 == consecutive) {
+                return 1;
             }
         }
     }
@@ -104,12 +94,9 @@ int has_won(board_t board, player_t player, int size, int win_condition)
 player_t other_player(player_t player)
 {
     switch (player) {
-    case 'X':
-        return 'O';
-    case 'O':
-        return 'X';
-    default:
-        assert(0);
+    case 'X': return 'O';
+    case 'O': return 'X';
+    default: assert(0);
     }
 }
 
@@ -122,28 +109,22 @@ typedef struct {
 
 #define MAX_ORD (43046720)
 
-uint8_t computed_moves[MAX_ORD + 1];
+uint8_t computed_moves[MAX_ORD+1];
 
 uint8_t encode_move(move_t m)
 {
     uint8_t b = 0;
 
-    assert(0 <= m.row && m.row <= 9); // Assuming maximum board size of 10
+    assert(0 <= m.row && m.row <= 3);
     b |= m.row;
 
-    assert(0 <= m.col && m.col <= 9);
-    b |= m.col << 4;
+    assert(0 <= m.col && m.col <= 3);
+    b |= m.col << 2;
 
     switch (m.score) {
-    case -1:
-        b |= 1 << 6;
-        break;
-    case 0:
-        b |= 1 << 5;
-        break;
-    case 1:
-        b |= 1 << 4;
-        break;
+    case -1: b |= 1 << 6; break;
+    case 0: b |= 1 << 5; break;
+    case 1: b |= 1 << 4; break;
     }
 
     return b;
@@ -153,14 +134,11 @@ move_t decode_move(uint8_t b)
 {
     move_t m;
 
-    m.row = b & 0xF;
-    m.col = (b & 0xF0) >> 4;
-    if (b & 0x10)
-        m.score = 1;
-    if (b & 0x20)
-        m.score = 0;
-    if (b & 0x40)
-        m.score = -1;
+    m.row = b & 0x3;
+    m.col = (b & 0xC) >> 2;
+    if (b & 0x10) m.score = 1;
+    if (b & 0x20) m.score = 0;
+    if (b & 0x40) m.score = -1;
     return m;
 }
 
@@ -173,15 +151,9 @@ int ord(board_t board, int size)
     for (int row = 0; row < size; ++row) {
         for (int col = 0; col < size; ++col) {
             switch (board[row][col]) {
-            case 'X':
-                d = 1;
-                break;
-            case 'O':
-                d = 2;
-                break;
-            case '.':
-                d = 0;
-                break;
+            case 'X': d = 1; break;
+            case 'O': d = 2; break;
+            case '.': d = 0; break;
             }
             i += d * p;
             p *= 3;
@@ -198,7 +170,7 @@ move_t best_move(board_t board, player_t player, int size)
     int no_candidate = 1;
 
     assert(!is_full(board, size));
-    assert(!has_won(board, player, size, size)); // Assuming win_condition = size
+    assert(!has_won(board, player, size, size)); // Set consecutive to size for a standard tic-tac-toe
     assert(!has_won(board, other_player(player), size, size));
 
     int o = ord(board, size);
@@ -213,11 +185,11 @@ move_t best_move(board_t board, player_t player, int size)
                 board[row][col] = player;
                 if (has_won(board, player, size, size)) {
                     board[row][col] = '.';
-                    computed_moves[o] = encode_move(candidate = (move_t){
+                    computed_moves[o] = encode_move(candidate = (move_t) {
                         .row = row,
                         .col = col,
-                        .score = 1,
-                    });
+                        .score = 1
+                        });
                     return candidate;
                 }
                 board[row][col] = '.';
@@ -231,35 +203,35 @@ move_t best_move(board_t board, player_t player, int size)
                 board[row][col] = player;
                 if (is_full(board, size)) {
                     board[row][col] = '.';
-                    computed_moves[o] = encode_move(candidate = (move_t){
+                    computed_moves[o] = encode_move(candidate = (move_t) {
                         .row = row,
                         .col = col,
-                        .score = 0,
-                    });
+                        .score = 0
+                        });
                     return candidate;
                 }
                 response = best_move(board, other_player(player), size);
                 board[row][col] = '.';
                 if (response.score == -1) {
-                    computed_moves[o] = encode_move(candidate = (move_t){
+                    computed_moves[o] = encode_move(candidate = (move_t) {
                         .row = row,
                         .col = col,
-                        .score = 1,
-                    });
+                        .score = 1
+                        });
                     return candidate;
                 } else if (response.score == 0) {
-                    candidate = (move_t){
+                    candidate = (move_t) {
                         .row = row,
                         .col = col,
-                        .score = 0,
+                        .score = 0
                     };
                     no_candidate = 0;
                 } else { /* response.score == +1 */
                     if (no_candidate) {
-                        candidate = (move_t){
+                        candidate = (move_t) {
                             .row = row,
                             .col = col,
-                            .score = -1,
+                            .score = -1
                         };
                         no_candidate = 0;
                     }
@@ -285,78 +257,76 @@ void print_key(int size)
 
 int main()
 {
-    int size, win_condition, goFirst;
-    printf("Enter the size of the Tic Tac Toe board (1 to %d): ", MAX_SIZE);
-    scanf("%d", &size);
+    int move, row, col;
+    board_t board;
+    move_t response;
+    player_t current;
+    
+    // Add variables to store the user's choices
+    int userChoice;
+    int consecutive;
 
-    if (size < 1 || size > MAX_SIZE) {
+    printf("Enter the board size (max %d): ", MAX_BOARD_SIZE);
+    int boardSize;
+    scanf("%d", &boardSize);
+
+    // Check if the chosen board size is valid
+    if (boardSize <= 0 || boardSize > MAX_BOARD_SIZE) {
         printf("Invalid board size. Exiting...\n");
         return 1;
     }
 
-    printf("Enter the winning condition (the number of consecutive symbols required to win the game): ");
-    scanf("%d", &win_condition);
+    printf("Enter the number of consecutive symbols needed to win: ");
+    scanf("%d", &consecutive);
 
-
-    printf("Choose who goes first (1 for user, 2 for computer): ");
-    scanf("%d", &goFirst);
-
-    // Allocate memory for the board dynamically
-    board_t board = (char **)malloc(size * sizeof(char *));
-    for (int i = 0; i < size; ++i) {
-        board[i] = (char *)malloc(size * sizeof(char));
+    // Check if the chosen number of consecutive symbols is valid
+    if (consecutive <= 0 || consecutive > boardSize) {
+        printf("Invalid number of consecutive symbols. Exiting...\n");
+        return 1;
     }
 
-    init_board(board, size);
+    printf("Choose who goes first:\n");
+    printf("1. User (X)\n");
+    printf("2. Computer (O)\n");
+    scanf("%d", &userChoice);
 
-    int move, row, col;
-    move_t response;
-    player_t userPlayer, computerPlayer, currentPlayer;
-
-    if (goFirst == 1) {
-        userPlayer = 'X';
-        computerPlayer = 'O';
-        currentPlayer = userPlayer;
+    if (userChoice == 1) {
+        current = 'X';
+    } else if (userChoice == 2) {
+        current = 'O';
     } else {
-        userPlayer = 'O';
-        computerPlayer = 'X';
-        currentPlayer = computerPlayer;
+        printf("Invalid choice. Exiting...\n");
+        return 1;
     }
 
+    init_board(board, boardSize);
     while (1) {
-        print_board(board, size);
+        print_board(board, boardSize);
 
-        if (currentPlayer == userPlayer) {
-            print_key(size);
+        if (current == 'X' && userChoice == 1) {
+            print_key(boardSize);
             printf("Enter your move: ");
             scanf("%d", &move);
-            row = move / size;
-            col = move % size;
+            row = move / boardSize;
+            col = move % boardSize;
             assert(board[row][col] == '.');
-            board[row][col] = currentPlayer;
+            board[row][col] = current;
         } else {
-            response = best_move(board, currentPlayer, size);
-            board[response.row][response.col] = currentPlayer;
+            response = best_move(board, current, boardSize);
+            board[response.row][response.col] = current;
         }
 
-        if (has_won(board, currentPlayer, size, win_condition)) {
-            print_board(board, size);
-            printf("Player %c has won!\n", currentPlayer);
+        if (has_won(board, current, boardSize, consecutive)) {
+            print_board(board, boardSize);
+            printf("Player %c has won!\n", current);
             break;
-        } else if (is_full(board, size)) {
-            print_board(board, size);
+        } else if (is_full(board, boardSize)) {
+            print_board(board, boardSize);
             printf("Draw.\n");
             break;
         }
-
-        currentPlayer = other_player(currentPlayer);
+        current = other_player(current);
     }
-
-    // Free dynamically allocated memory
-    for (int i = 0; i < size; ++i) {
-        free(board[i]);
-    }
-    free(board);
 
     return 0;
 }

@@ -5,7 +5,7 @@ Tic-Tac-Toe ! Ya, you heard it, right. The game which we played a lot while we w
 
 # Algorithm 
 
-This code is based on the DFS (Depth First Search) of graph traversal which goes through all possible situations and gives the best possible move on that situation. So this puts the computer in never loose case. I bet you can't win in this game and if you manage to do so without changing the code :) , just DM me, will give you a treat 😃.
+This code is based on the DFS (Depth First Search) of graph traversal which goes through all possible situations and gives the best possible move on that situation. I bet you can't win in this game (if you are going second) and if you manage to do so without changing the code :) , just DM me, will give you a treat 😃.
 
 # Contact
 

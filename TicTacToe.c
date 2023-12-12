@@ -40,38 +40,65 @@ int is_full(board_t board, int size)
     return 1;
 }
 
-int has_won(board_t board, player_t player, int size)
+int has_won(board_t board, player_t player, int size, int win_condition)
 {
     for (int row = 0; row < size; ++row) {
         for (int col = 0; col < size; ++col) {
-            if (board[row][col] != player) {
-                goto next_row;
+            // Check horizontal
+            if (col + win_condition <= size) {
+                int count = 0;
+                for (int i = 0; i < win_condition; ++i) {
+                    if (board[row][col + i] == player) {
+                        count++;
+                    }
+                }
+                if (count == win_condition) {
+                    return 1;
+                }
+            }
+
+            // Check vertical
+            if (row + win_condition <= size) {
+                int count = 0;
+                for (int i = 0; i < win_condition; ++i) {
+                    if (board[row + i][col] == player) {
+                        count++;
+                    }
+                }
+                if (count == win_condition) {
+                    return 1;
+                }
+            }
+
+            // Check diagonal (top-left to bottom-right)
+            if (row + win_condition <= size && col + win_condition <= size) {
+                int count = 0;
+                for (int i = 0; i < win_condition; ++i) {
+                    if (board[row + i][col + i] == player) {
+                        count++;
+                    }
+                }
+                if (count == win_condition) {
+                    return 1;
+                }
+            }
+
+            // Check diagonal (top-right to bottom-left)
+            if (row + win_condition <= size && col - win_condition >= -1) {
+                int count = 0;
+                for (int i = 0; i < win_condition; ++i) {
+                    if (board[row + i][col - i] == player) {
+                        count++;
+                    }
+                }
+                if (count == win_condition) {
+                    return 1;
+                }
             }
         }
-        return 1;
-    next_row:;
     }
 
-    for (int col = 0; col < size; ++col) {
-        for (int row = 0; row < size; ++row) {
-            if (board[row][col] != player) {
-                goto next_col;
-            }
-        }
-        return 1;
-    next_col:;
-    }
-
-    for (int i = 0; i < size; ++i) {
-        if (board[i][i] != player) goto next_diagonal;
-    }
-    return 1;
-
-next_diagonal:;
-    for (int i = 0; i < size; ++i) {
-        if (board[i][size - 1 - i] != player) return 0;
-    }
-    return 1;
+    return 0;
 }
 
 player_t other_player(player_t player)
@@ -171,8 +198,8 @@ move_t best_move(board_t board, player_t player, int size)
     int no_candidate = 1;
 
     assert(!is_full(board, size));
-    assert(!has_won(board, player, size));
-    assert(!has_won(board, other_player(player), size));
+    assert(!has_won(board, player, size, size)); // Assuming win_condition = size
+    assert(!has_won(board, other_player(player), size, size));
 
     int o = ord(board, size);
 
@@ -184,7 +211,7 @@ move_t best_move(board_t board, player_t player, int size)
         for (int col = 0; col < size; ++col) {
             if (board[row][col] == '.') {
                 board[row][col] = player;
-                if (has_won(board, player, size)) {
+                if (has_won(board, player, size, size)) {
                     board[row][col] = '.';
                     computed_moves[o] = encode_move(candidate = (move_t){
                         .row = row,
@@ -258,14 +285,18 @@ void print_key(int size)
 
 int main()
 {
-    int size, goFirst;
-    printf("Enter the size of the Tic Tac Toe board (max %d): ", MAX_SIZE);
+    int size, win_condition, goFirst;
+    printf("Enter the size of the Tic Tac Toe board (1 to %d): ", MAX_SIZE);
     scanf("%d", &size);
 
-    if (size > MAX_SIZE || size < 3) {
+    if (size < 1 || size > MAX_SIZE) {
         printf("Invalid board size. Exiting...\n");
         return 1;
     }
+
+    printf("Enter the winning condition (the number of consecutive symbols required to win the game): ");
+    scanf("%d", &win_condition);
+
 
     printf("Choose who goes first (1 for user, 2 for computer): ");
     scanf("%d", &goFirst);
@@ -308,7 +339,7 @@ int main()
             board[response.row][response.col] = currentPlayer;
         }
 
-        if (has_won(board, currentPlayer, size)) {
+        if (has_won(board, currentPlayer, size, win_condition)) {
             print_board(board, size);
             printf("Player %c has won!\n", currentPlayer);
             break;
